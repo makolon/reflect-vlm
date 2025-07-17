@@ -178,7 +178,11 @@ class MujocoEnv(gym.Env, abc.ABC):
         self.viewer = self._viewers.get(mode)
         if self.viewer is None:
             if mode == 'window':
-                self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
+                self.viewer = mujoco.viewer.launch_passive(
+                    self.model, self.data,
+                    show_left_ui=False,
+                    show_right_ui=False,
+                )
             self.viewer_setup()
             self._viewers[mode] = self.viewer
         self.viewer_setup()
