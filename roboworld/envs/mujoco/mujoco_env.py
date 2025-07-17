@@ -1,7 +1,6 @@
 import abc
 import random
 import warnings
-import glfw
 from gym.utils import seeding
 import numpy as np
 from os import path
@@ -146,10 +145,8 @@ class MujocoEnv(gym.Env, abc.ABC):
             else:
                 return None
         else:
-            img = self._get_viewer('window').render()
-            if self._record:
-                self._record_img(img.copy())
-            return img
+            self._get_viewer('window').sync()
+            return None
 
     def record_on(self, record_frame_skip=5):
         self.frames = []
@@ -173,7 +170,7 @@ class MujocoEnv(gym.Env, abc.ABC):
 
     def close(self):
         if self.viewer is not None:
-            glfw.destroy_window(self.viewer.window)
+            self.viewer.close()
             self.viewer = None
 
     def _get_viewer(self, mode):
@@ -181,8 +178,7 @@ class MujocoEnv(gym.Env, abc.ABC):
         self.viewer = self._viewers.get(mode)
         if self.viewer is None:
             if mode == 'window':
-                import mujoco_viewer
-                self.viewer = mujoco_viewer.MujocoViewer(self.model, self.data, mode='window')
+                self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
             self.viewer_setup()
             self._viewers[mode] = self.viewer
         self.viewer_setup()
