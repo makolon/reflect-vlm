@@ -16,7 +16,9 @@ def define_flags(**kwargs):
             else:
                 default_val, flag_type = val
                 help_str = ""
-            assert flag_type in ["integer", "string", "bool", "float"], f"Type `{flag_type}` not supported"
+            assert flag_type in ["integer", "string", "bool", "float"], (
+                f"Type `{flag_type}` not supported"
+            )
             assert isinstance(help_str, str)
             getattr(absl.flags, f"DEFINE_{flag_type}")(key, default_val, help_str)
             output[key] = default_val
@@ -41,7 +43,7 @@ def flatten_config_dict(config, prefix=None):
     output = {}
     for key, val in config.items():
         if prefix is not None:
-            next_prefix = '{}.{}'.format(prefix, key)
+            next_prefix = "{}.{}".format(prefix, key)
         else:
             next_prefix = key
         if isinstance(val, ConfigDict):

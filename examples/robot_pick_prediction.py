@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-"""
-Robot Pick Action Prediction Script
-
-This script uses the ReflectVLM diffusion model to predict what a robot scene
-would look like after performing a pick action on objects in the scene.
-"""
-
 import argparse
 import os
 import sys

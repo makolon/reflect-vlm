@@ -1,7 +1,7 @@
 import argparse
 import readline
 
-from roboworld.agent.oracle import OracleAgent
+from roboworld.agents.oracle import OracleAgent
 from roboworld.constants import ACTION_PRIMITIVES
 from roboworld.envs.asset_path_utils import full_path_for
 from roboworld.envs.generator import generate_xml

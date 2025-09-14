@@ -1,8 +1,9 @@
-from typing import Dict
-from xml.etree.ElementTree import Element, SubElement, Comment, tostring
-from xml.dom import minidom
-import numpy as np
 from datetime import datetime
+from typing import Dict
+from xml.dom import minidom
+from xml.etree.ElementTree import Comment, Element, SubElement, tostring
+
+import numpy as np
 
 
 def array2string(a: np.ndarray):
@@ -22,7 +23,9 @@ def set_attribute(elem, attr_key, attr_val):
         elif isinstance(v, int) or isinstance(v, float):
             v = str(v)
         else:
-            raise ValueError(f"Unsupported value type `{type(v)}` for key `{attr_key}`.")
+            raise ValueError(
+                f"Unsupported value type `{type(v)}` for key `{attr_key}`."
+            )
     elem.set(attr_key, v)
 
 
@@ -48,21 +51,26 @@ def write_xml_file(root_elem, filename):
 
 
 class XmlMaker(object):
-
     def __init__(self):
         self.root = Element("mujoco")  # root
         timestamp = datetime.now().strftime("%H:%M:%S, %m/%d/%Y")
         self.root.append(Comment(f"Automatically generated @ {timestamp}."))
 
         # compiler
-        compiler = create_element("compiler", parent=self.root, attributes={
-            "angle": "radian",
-            "meshdir": ".",
-            "autolimits": "true",
-        })
+        _compiler = create_element(
+            "compiler",
+            parent=self.root,
+            attributes={
+                "angle": "radian",
+                "meshdir": ".",
+                "autolimits": "true",
+            },
+        )
 
         # include
-        create_element("include", parent=self.root, attributes=dict(file="franka/panda.xml"))
+        create_element(
+            "include", parent=self.root, attributes=dict(file="franka/panda.xml")
+        )
         create_element("include", parent=self.root, attributes=dict(file="scene.xml"))
 
         # asset

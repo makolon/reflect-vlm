@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Simple robot pick prediction script using existing robot scene image
-"""
-
 import os
 
 import torch

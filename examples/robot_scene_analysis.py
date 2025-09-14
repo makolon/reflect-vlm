@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Analyze robot scene and generate contextual pick predictions
-"""
-
 import os
 
 import torch

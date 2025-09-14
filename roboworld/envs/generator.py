@@ -1,14 +1,16 @@
 from __future__ import annotations
-from typing import Dict, List, Optional
-from numpy.typing import ArrayLike
-from xml.etree.ElementTree import Element
-import numpy as np
-import random
+
 import glob
 import pathlib
+import random
+from typing import Dict, List, Optional
+from xml.etree.ElementTree import Element
 
-from roboworld.envs.xml_utils import set_attributes, create_element, XmlMaker
+import numpy as np
+from numpy.typing import ArrayLike
+
 from roboworld.envs.mujoco.utils.rotation import euler2quat
+from roboworld.envs.xml_utils import XmlMaker, create_element, set_attributes
 
 ASSETS_DIR = pathlib.Path(__file__).parent.resolve() / "assets"
 
@@ -21,10 +23,25 @@ COLORS = {
     "brown": (0.5490196078431373, 0.3803921568627451, 0.23529411764705882),
     "pink": (0.8627450980392157, 0.49411764705882355, 0.7529411764705882),
     "gray": (0.4745098039215686, 0.4745098039215686, 0.4745098039215686),
-    "yellow": (0.9098, 0.6784, 0.1373)
+    "yellow": (0.9098, 0.6784, 0.1373),
 }
-SHAPES = ["arch", "circle", "cross", "flower", "heart", "hexagon", "moon", "oval", "parallelogram",
-          "pentagon", "square", "star", "trapezoid", "trefoil", "triangle"]
+SHAPES = [
+    "arch",
+    "circle",
+    "cross",
+    "flower",
+    "heart",
+    "hexagon",
+    "moon",
+    "oval",
+    "parallelogram",
+    "pentagon",
+    "square",
+    "star",
+    "trapezoid",
+    "trefoil",
+    "triangle",
+]
 VOXEL_SIZE = 0.01
 
 
@@ -43,7 +60,7 @@ def slice3d(start: ArrayLike, end: ArrayLike) -> tuple[slice, ...]:
     Create a 3D slice from start and end indices
     """
     s = []
-    for (l, r) in zip(start, end):
+    for l, r in zip(start, end):
         assert l % 1 == 0 and r % 1 == 0
         s.append(slice(int(l), int(r)))
     return tuple(s)
@@ -65,7 +82,9 @@ def random_rgba(a: Optional[float] = None) -> tuple:
     return (random_color()) + (np.random.rand() if a is None else a,)
 
 
-def random_size(x: Optional[int] = None, y: Optional[int] = None, z: Optional[int] = None):
+def random_size(
+    x: Optional[int] = None, y: Optional[int] = None, z: Optional[int] = None
+):
     """
     Sample a random size (x, y, z) for a cuboid brick
     """
@@ -87,15 +106,23 @@ class Brick(object):
     The value of each voxel is an integer, with 0 representing empty space, and 1 representing occupancy.
     """
 
-    def __init__(self, name: str, size: ArrayLike, offset: Optional[ArrayLike] = None, rgba: Optional[tuple] = None,
-                 parent_board: Optional[Board] = None):
+    def __init__(
+        self,
+        name: str,
+        size: ArrayLike,
+        offset: Optional[ArrayLike] = None,
+        rgba: Optional[tuple] = None,
+        parent_board: Optional[Board] = None,
+    ):
         self.name = name
         self._rgba = rgba if rgba is not None else random_rgba(a=1.0)
         self._voxels = np.ones(size, dtype=int)
         self._voxel_size = VOXEL_SIZE
-        self.description = ""   # language description of this brick
+        self.description = ""  # language description of this brick
         self.parent_board = parent_board
-        self.offset = np.array(offset) if offset is not None else np.zeros(3)  # voxel offset relative to parent
+        self.offset = (
+            np.array(offset) if offset is not None else np.zeros(3)
+        )  # voxel offset relative to parent
 
     def _get_voxel_center(self, idx: ArrayLike):
         """
@@ -109,8 +136,13 @@ class Brick(object):
         """
         return (np.array(idx) + size / 2) * self._voxel_size - self.base_center
 
-    def get_body(self, pos: Optional[ArrayLike] = None, quat: Optional[ArrayLike] = None,
-                 freejoint: bool = True, optimize: bool = True):
+    def get_body(
+        self,
+        pos: Optional[ArrayLike] = None,
+        quat: Optional[ArrayLike] = None,
+        freejoint: bool = True,
+        optimize: bool = True,
+    ):
         """
         Get the body element of this brick
         """
@@ -128,31 +160,58 @@ class Brick(object):
         aux_assets.extend(visual_aux_assets)
         aux_asset_names = [x.get("name") for x in aux_assets]
         # create collision geoms
-        collision_geoms, collision_aux_assets = self._get_geoms("collision", optimize=optimize)
+        collision_geoms, collision_aux_assets = self._get_geoms(
+            "collision", optimize=optimize
+        )
         for collision_geom in collision_geoms:
-            set_attributes(collision_geom, attributes={"name": collision_geom.get("name") + "_c", "class": "collision"})
+            set_attributes(
+                collision_geom,
+                attributes={
+                    "name": collision_geom.get("name") + "_c",
+                    "class": "collision",
+                },
+            )
             geom_type = collision_geom.get("type")
             if geom_type in {"box", "cylinder"}:
-                original_size = np.array(collision_geom.get("size").split()).astype(float)
-                set_attributes(collision_geom, attributes={
-                    "size": original_size - np.array([0.001, 0.001, 0]) if collision_geom.get("type") == "box"
-                                else original_size - np.array([0.002, 0])
-                })
+                original_size = np.array(collision_geom.get("size").split()).astype(
+                    float
+                )
+                set_attributes(
+                    collision_geom,
+                    attributes={
+                        "size": original_size - np.array([0.001, 0.001, 0])
+                        if collision_geom.get("type") == "box"
+                        else original_size - np.array([0.002, 0])
+                    },
+                )
             body.append(collision_geom)
         for collision_aux_asset in collision_aux_assets:
             if collision_aux_asset.get("name") not in aux_asset_names:
                 aux_assets.append(collision_aux_asset)
 
         # create a site for alignment
-        create_element(tag="site", parent=body, attributes={
-            "name": f"{self.name}_align", "pos": [0, 0, 0], "class": "invisible_site"
-        })
+        create_element(
+            tag="site",
+            parent=body,
+            attributes={
+                "name": f"{self.name}_align",
+                "pos": [0, 0, 0],
+                "class": "invisible_site",
+            },
+        )
         # create sites for grasping
         grasp_poses = self._get_grasp_poses()
         for name, (grasp_pos, grasp_quat) in grasp_poses.items():
-            create_element(tag="site", parent=body, attributes={
-                "name": name, "pos": grasp_pos, "quat": grasp_quat, "class": "invisible_site"
-            })
+            create_element(
+                tag="site",
+                parent=body,
+                attributes={
+                    "name": name,
+                    "pos": grasp_pos,
+                    "quat": grasp_quat,
+                    "class": "invisible_site",
+                },
+            )
 
         # create sites for auxiliary poses
         grasp_pos = list(grasp_poses.values())[0][0]
@@ -175,11 +234,11 @@ class Brick(object):
         candidates = []
         if main_axis == 0:
             for i in range(self.size[main_axis] - 1):
-                if np.all(self._voxels[i: i + 2, :, -2:] != 0):
+                if np.all(self._voxels[i : i + 2, :, -2:] != 0):
                     candidates.append(i)
         else:  # main_axis == 1
             for i in range(self.size[main_axis] - 1):
-                if np.all(self._voxels[:, i: i + 2, -2:] != 0):
+                if np.all(self._voxels[:, i : i + 2, -2:] != 0):
                     candidates.append(i)
         mid = (self.size[main_axis] - 1) // 2
         if len(candidates) == 0:
@@ -189,18 +248,27 @@ class Brick(object):
             candidates.sort(key=lambda x: abs(x - mid))
             best_idx = candidates[0]
             pos_main_axis = (best_idx + 1) * self._voxel_size
-        pos = [pos_main_axis, self.base_center[1 - main_axis], (self.size[-1] - 0.5) * self._voxel_size]
+        pos = [
+            pos_main_axis,
+            self.base_center[1 - main_axis],
+            (self.size[-1] - 0.5) * self._voxel_size,
+        ]
         if main_axis == 1:
             pos[0], pos[1] = pos[1], pos[0]
         pos = np.array(pos) - self.base_center
-        euler_zs = [0., np.pi] if main_axis == 1 else [-np.pi / 2, np.pi / 2]
+        euler_zs = [0.0, np.pi] if main_axis == 1 else [-np.pi / 2, np.pi / 2]
         euler_candidates = [np.array([0, 0, z]) for z in euler_zs]
 
-        grasp_poses = {f"{self.name}_grasp{i}": (pos, euler2quat(euler)) for i, euler in enumerate(euler_candidates)}
+        grasp_poses = {
+            f"{self.name}_grasp{i}": (pos, euler2quat(euler))
+            for i, euler in enumerate(euler_candidates)
+        }
 
         return grasp_poses
 
-    def _get_auxiliary_poses(self, grasp_pos: np.ndarray) -> dict[str, tuple[np.ndarray | None, np.ndarray | None]]:
+    def _get_auxiliary_poses(
+        self, grasp_pos: np.ndarray
+    ) -> dict[str, tuple[np.ndarray | None, np.ndarray | None]]:
         """
         Get the auxiliary poses of this brick
         """
@@ -208,13 +276,31 @@ class Brick(object):
 
         height = self.size[-1] * self._voxel_size
         width = self.size[1 - main_axis] * self._voxel_size
-        waist_idx_along_main_axis = round((grasp_pos[main_axis] + self.base_center[main_axis]) / self._voxel_size)
-        thickness = np.sum(self.voxels[waist_idx_along_main_axis, 0, :] != 0) * self._voxel_size if main_axis == 0 \
-            else np.sum(self.voxels[0, waist_idx_along_main_axis, :] != 0) * self._voxel_size
+        waist_idx_along_main_axis = round(
+            (grasp_pos[main_axis] + self.base_center[main_axis]) / self._voxel_size
+        )
+        thickness = (
+            np.sum(self.voxels[waist_idx_along_main_axis, 0, :] != 0) * self._voxel_size
+            if main_axis == 0
+            else np.sum(self.voxels[0, waist_idx_along_main_axis, :] != 0)
+            * self._voxel_size
+        )
         side0_base_pos = np.array([0, -width / 2, height / 2])
         side1_base_pos = np.array([0, width / 2, height / 2])
-        side0_grasp_pos = np.array([grasp_pos[main_axis], width / 2 - 0.5 * self._voxel_size, height - thickness / 2])
-        side1_grasp_pos = np.array([grasp_pos[main_axis], -width / 2 + 0.5 * self._voxel_size, height - thickness / 2])
+        side0_grasp_pos = np.array(
+            [
+                grasp_pos[main_axis],
+                width / 2 - 0.5 * self._voxel_size,
+                height - thickness / 2,
+            ]
+        )
+        side1_grasp_pos = np.array(
+            [
+                grasp_pos[main_axis],
+                -width / 2 + 0.5 * self._voxel_size,
+                height - thickness / 2,
+            ]
+        )
         if main_axis == 1:
             for p in [side0_base_pos, side1_base_pos, side0_grasp_pos, side1_grasp_pos]:
                 p[0], p[1] = p[1], p[0]
@@ -250,7 +336,9 @@ class Brick(object):
         main_axis = 1 if self.size[0] <= 5 else 0
         return main_axis
 
-    def _get_geoms(self, geom_class: str, optimize: bool = True) -> tuple[List[Element], List[Element]]:
+    def _get_geoms(
+        self, geom_class: str, optimize: bool = True
+    ) -> tuple[List[Element], List[Element]]:
         """
         Get the visual or collision geoms of this brick
         :param geom_class: "visual" or "collision"
@@ -264,18 +352,23 @@ class Brick(object):
             for j in range(self.size[1]):
                 for k in range(self.size[2]):
                     if self._voxels[i, j, k] != 0:
-                        geom = create_element(tag="geom", attributes={
-                            "name": f"{self.name}_g{len(geoms)}_{get_color_name(self._rgba[:3])}",
-                            "pos": self._get_voxel_center((i, j, k)),
-                            "type": "box",
-                            "size": np.array([self._voxel_size / 2] * 3),
-                            "rgba": np.array(self._rgba),
-                            "class": geom_class
-                        })
+                        geom = create_element(
+                            tag="geom",
+                            attributes={
+                                "name": f"{self.name}_g{len(geoms)}_{get_color_name(self._rgba[:3])}",
+                                "pos": self._get_voxel_center((i, j, k)),
+                                "type": "box",
+                                "size": np.array([self._voxel_size / 2] * 3),
+                                "rgba": np.array(self._rgba),
+                                "class": geom_class,
+                            },
+                        )
                         geoms.append(geom)
         return geoms, aux_assets
 
-    def _cuboid2geom(self, idx: ArrayLike, size: ArrayLike, val: int, geom_class: str, gidx: int = -1):
+    def _cuboid2geom(
+        self, idx: ArrayLike, size: ArrayLike, val: int, geom_class: str, gidx: int = -1
+    ):
         """
         Convert a cuboid to geoms
         :param idx: index (pos) of the cuboid
@@ -288,73 +381,96 @@ class Brick(object):
         assert val != 0
         geoms, aux_assets = [], []
         if val > 0:
-            geom = create_element(tag="geom", attributes={
-                "name": f"{self.name}_g{gidx}_{get_color_name(self._rgba[:3])}",
-                "pos": self._get_cuboid_center(idx, size),
-                "type": "box",
-                "size": np.array(size) * self._voxel_size / 2,
-                "rgba": np.array(self._rgba),
-                "class": geom_class
-            })
+            geom = create_element(
+                tag="geom",
+                attributes={
+                    "name": f"{self.name}_g{gidx}_{get_color_name(self._rgba[:3])}",
+                    "pos": self._get_cuboid_center(idx, size),
+                    "type": "box",
+                    "size": np.array(size) * self._voxel_size / 2,
+                    "rgba": np.array(self._rgba),
+                    "class": geom_class,
+                },
+            )
             geoms.append(geom)
         else:
             # hole
             if self.parent_board is not None and val in self.parent_board.hole_shapes:
                 shape = self.parent_board.hole_shapes[val]
                 if geom_class == "collision":
-                    for p in glob.glob(f"{ASSETS_DIR}/objects/pegs_and_holes/{shape}_hole/*.obj"):
-                        geom = create_element(tag="geom", attributes={
-                            "name": f"{self.name}_g{gidx}_{len(geoms)}_{get_color_name(self._rgba[:3])}",
-                            "pos": self._get_cuboid_center(idx, size),
-                            "type": "mesh",
-                            "mesh": f"{self.name}_{shape}_hole_g{gidx}_{len(geoms)}",
-                            "rgba": np.array(self._rgba),
-                            "class": geom_class
-                        })
-                        aux_asset = create_element("mesh", attributes=dict(
-                            name=f"{self.name}_{shape}_hole_g{gidx}_{len(geoms)}",
-                            file=f"./objects/pegs_and_holes/{shape}_hole/{p.split('/')[-1]}",
-                            scale=size,
-                        ))
+                    for p in glob.glob(
+                        f"{ASSETS_DIR}/objects/pegs_and_holes/{shape}_hole/*.obj"
+                    ):
+                        geom = create_element(
+                            tag="geom",
+                            attributes={
+                                "name": f"{self.name}_g{gidx}_{len(geoms)}_{get_color_name(self._rgba[:3])}",
+                                "pos": self._get_cuboid_center(idx, size),
+                                "type": "mesh",
+                                "mesh": f"{self.name}_{shape}_hole_g{gidx}_{len(geoms)}",
+                                "rgba": np.array(self._rgba),
+                                "class": geom_class,
+                            },
+                        )
+                        aux_asset = create_element(
+                            "mesh",
+                            attributes=dict(
+                                name=f"{self.name}_{shape}_hole_g{gidx}_{len(geoms)}",
+                                file=f"./objects/pegs_and_holes/{shape}_hole/{p.split('/')[-1]}",
+                                scale=size,
+                            ),
+                        )
                         geoms.append(geom)
                         aux_assets.append(aux_asset)
                 else:
-                    geom = create_element(tag="geom", attributes={
-                        "name": f"{self.name}_g{gidx}_{get_color_name(self._rgba[:3])}",
-                        "pos": self._get_cuboid_center(idx, size),
-                        "type": "mesh",
-                        "mesh": f"{self.name}_{shape}_hole_g{gidx}",
-                        "rgba": np.array(self._rgba),
-                        "class": geom_class
-                    })
-                    aux_asset = create_element("mesh", attributes=dict(
-                        name=f"{self.name}_{shape}_hole_g{gidx}",
-                        file=f"./objects/pegs_and_holes/{shape}_hole.stl",
-                        scale=size,
-                    ))
+                    geom = create_element(
+                        tag="geom",
+                        attributes={
+                            "name": f"{self.name}_g{gidx}_{get_color_name(self._rgba[:3])}",
+                            "pos": self._get_cuboid_center(idx, size),
+                            "type": "mesh",
+                            "mesh": f"{self.name}_{shape}_hole_g{gidx}",
+                            "rgba": np.array(self._rgba),
+                            "class": geom_class,
+                        },
+                    )
+                    aux_asset = create_element(
+                        "mesh",
+                        attributes=dict(
+                            name=f"{self.name}_{shape}_hole_g{gidx}",
+                            file=f"./objects/pegs_and_holes/{shape}_hole.stl",
+                            scale=size,
+                        ),
+                    )
                     geoms.append(geom)
                     aux_assets.append(aux_asset)
 
             else:
                 # nail
                 if geom_class == "visual":
-                    geom = create_element(tag="geom", attributes={
-                        "name": f"{self.name}_g{gidx}_{get_color_name(self._rgba[:3])}",
-                        "pos": self._get_cuboid_center(idx, size),
-                        "type": "mesh",
-                        "mesh": f"{self.name}_hole_{val}",
-                        "rgba": np.array(self._rgba),
-                        "class": geom_class
-                    })
-                    aux_asset = create_element("mesh", attributes=dict(
-                        name=f"{self.name}_hole_{val}",
-                        file="./objects/circle_hole/circle_hole.stl",
-                        scale=size,
-                    ))
+                    geom = create_element(
+                        tag="geom",
+                        attributes={
+                            "name": f"{self.name}_g{gidx}_{get_color_name(self._rgba[:3])}",
+                            "pos": self._get_cuboid_center(idx, size),
+                            "type": "mesh",
+                            "mesh": f"{self.name}_hole_{val}",
+                            "rgba": np.array(self._rgba),
+                            "class": geom_class,
+                        },
+                    )
+                    aux_asset = create_element(
+                        "mesh",
+                        attributes=dict(
+                            name=f"{self.name}_hole_{val}",
+                            file="./objects/circle_hole/circle_hole.stl",
+                            scale=size,
+                        ),
+                    )
                     geoms.append(geom)
                     aux_assets.append(aux_asset)
                 else:
-                    pass    # no collision shape for nailhole
+                    pass  # no collision shape for nailhole
         return geoms, aux_assets
 
     @staticmethod
@@ -367,8 +483,9 @@ class Brick(object):
         expanding_dim = 0
         size[0] += 1
         while not np.all(maximized):
-            if idx[expanding_dim] + size[expanding_dim] <= voxels.shape[expanding_dim] \
-                    and np.all(voxels[slice3d(idx, np.array(idx) + size)] == val):
+            if idx[expanding_dim] + size[expanding_dim] <= voxels.shape[
+                expanding_dim
+            ] and np.all(voxels[slice3d(idx, np.array(idx) + size)] == val):
                 # decide the dim to expand
                 for i in range(3):
                     if maximized[i]:
@@ -382,7 +499,9 @@ class Brick(object):
         assert np.all(size > 0)
         return size
 
-    def _get_optimized_geoms(self, geom_class: str) -> tuple[List[Element], List[Element]]:
+    def _get_optimized_geoms(
+        self, geom_class: str
+    ) -> tuple[List[Element], List[Element]]:
         """
         Get the visual or collision geoms of this brick with optimization to reduce the number of geoms
         """
@@ -400,7 +519,9 @@ class Brick(object):
 
         geoms, aux_assets = [], []
         for gidx, (cuboid_idx, cuboid_size, cuboid_val) in enumerate(cuboids):
-            _geoms, _aux_assets = self._cuboid2geom(cuboid_idx, cuboid_size, cuboid_val, geom_class=geom_class, gidx=gidx)
+            _geoms, _aux_assets = self._cuboid2geom(
+                cuboid_idx, cuboid_size, cuboid_val, geom_class=geom_class, gidx=gidx
+            )
             geoms.extend(_geoms)
             aux_assets.extend(_aux_assets)
         return geoms, aux_assets
@@ -437,42 +558,74 @@ class Nail(Brick):
     Class of a nail, overriding the `Brick` class
     """
 
-    def __init__(self, name, size, shank_length, offset=None, rgba=None, parent_board=None):
-        super().__init__(name, size, offset=offset, rgba=rgba, parent_board=parent_board)
+    def __init__(
+        self, name, size, shank_length, offset=None, rgba=None, parent_board=None
+    ):
+        super().__init__(
+            name, size, offset=offset, rgba=rgba, parent_board=parent_board
+        )
         self.shank_length = shank_length
-        self.voxels[:, :, :self.shank_length] = 0
-        self.voxels[1:-1, 1:-1, :self.shank_length] = -1
+        self.voxels[:, :, : self.shank_length] = 0
+        self.voxels[1:-1, 1:-1, : self.shank_length] = -1
 
-    def _get_geoms(self, geom_class: str, optimize: bool = True) -> tuple[List[Element], List[Element]]:
+    def _get_geoms(
+        self, geom_class: str, optimize: bool = True
+    ) -> tuple[List[Element], List[Element]]:
         color_name = get_color_name(self._rgba[:3])
-        geom_shank = create_element(tag="geom", attributes={
-            "name": f"{self.name}_g0_{color_name}",
-            "pos": self.shank_center,
-            "type": "cylinder",
-            "size": np.array([(self.size[0] - 2) * self._voxel_size / 2, self.shank_length * self._voxel_size / 2]),
-            "rgba": np.array(self._rgba),
-            "class": geom_class
-        })
-        geom_head = create_element(tag="geom", attributes={
-            "name": f"{self.name}_g1_{color_name}",
-            "pos": self.head_center,
-            "type": "mesh",
-            "mesh": f"{self.name}_nail_head",
-            "rgba": np.array(self._rgba),
-            "class": geom_class
-        })
-        aux_assets = [create_element("mesh", attributes=dict(
-            name=f"{self.name}_nail_head",
-            file="./objects/hexagon_prism/hexagon_prism.stl",
-            scale=np.array([self.size[0], self.size[1], (self.size[-1] - self.shank_length)]),
-        ))]
+        geom_shank = create_element(
+            tag="geom",
+            attributes={
+                "name": f"{self.name}_g0_{color_name}",
+                "pos": self.shank_center,
+                "type": "cylinder",
+                "size": np.array(
+                    [
+                        (self.size[0] - 2) * self._voxel_size / 2,
+                        self.shank_length * self._voxel_size / 2,
+                    ]
+                ),
+                "rgba": np.array(self._rgba),
+                "class": geom_class,
+            },
+        )
+        geom_head = create_element(
+            tag="geom",
+            attributes={
+                "name": f"{self.name}_g1_{color_name}",
+                "pos": self.head_center,
+                "type": "mesh",
+                "mesh": f"{self.name}_nail_head",
+                "rgba": np.array(self._rgba),
+                "class": geom_class,
+            },
+        )
+        aux_assets = [
+            create_element(
+                "mesh",
+                attributes=dict(
+                    name=f"{self.name}_nail_head",
+                    file="./objects/hexagon_prism/hexagon_prism.stl",
+                    scale=np.array(
+                        [
+                            self.size[0],
+                            self.size[1],
+                            (self.size[-1] - self.shank_length),
+                        ]
+                    ),
+                ),
+            )
+        ]
         return [geom_shank, geom_head], aux_assets
 
     def _get_grasp_poses(self) -> Dict[str, tuple[np.ndarray, np.ndarray]]:
         pos = np.zeros(3)
         pos[-1] = (self.size[-1] - 0.5) * self._voxel_size
-        face_grasp_euler_candidates = [np.array([0, 0, np.pi / 6 + k * np.pi / 3]) for k in range(6)]
-        ridge_grasp_euler_candidates = [np.array([0, 0, k * np.pi / 3]) for k in range(6)]
+        face_grasp_euler_candidates = [
+            np.array([0, 0, np.pi / 6 + k * np.pi / 3]) for k in range(6)
+        ]
+        ridge_grasp_euler_candidates = [
+            np.array([0, 0, k * np.pi / 3]) for k in range(6)
+        ]
         grasp_poses = {}
         for i, euler in enumerate(face_grasp_euler_candidates):
             grasp_poses[f"{self.name}_grasp{i}"] = (pos, euler2quat(euler))
@@ -498,27 +651,39 @@ class Peg(Brick):
     """
 
     def __init__(self, name, size, shape, offset=None, rgba=None, parent_board=None):
-        super().__init__(name, size, offset=offset, rgba=rgba, parent_board=parent_board)
+        super().__init__(
+            name, size, offset=offset, rgba=rgba, parent_board=parent_board
+        )
         self.shape = shape
         self.voxels[:, :, :] = -1
 
-    def _get_geoms(self, geom_class, optimize=True) -> tuple[List[Element], List[Element]]:
+    def _get_geoms(
+        self, geom_class, optimize=True
+    ) -> tuple[List[Element], List[Element]]:
         color_name = get_color_name(self._rgba[:3])
         geoms, aux_assets = [], []
-        for p in glob.glob(f"{ASSETS_DIR}/objects/pegs_and_holes/{self.shape}_peg/*.obj"):
-            geom = create_element(tag="geom", attributes={
-                "name": f"{self.name}_g{len(geoms)}_{color_name}",
-                "pos": self.peg_center,
-                "type": "mesh",
-                "mesh": f"{self.name}_{self.shape}_peg_g{len(geoms)}",
-                "rgba": np.array(self._rgba),
-                "class": geom_class
-            })
-            aux_asset = create_element("mesh", attributes=dict(
-                name=f"{self.name}_{self.shape}_peg_g{len(geoms)}",
-                file=f"./objects/pegs_and_holes/{self.shape}_peg/{p.split('/')[-1]}",
-                scale=self.size,
-            ))
+        for p in glob.glob(
+            f"{ASSETS_DIR}/objects/pegs_and_holes/{self.shape}_peg/*.obj"
+        ):
+            geom = create_element(
+                tag="geom",
+                attributes={
+                    "name": f"{self.name}_g{len(geoms)}_{color_name}",
+                    "pos": self.peg_center,
+                    "type": "mesh",
+                    "mesh": f"{self.name}_{self.shape}_peg_g{len(geoms)}",
+                    "rgba": np.array(self._rgba),
+                    "class": geom_class,
+                },
+            )
+            aux_asset = create_element(
+                "mesh",
+                attributes=dict(
+                    name=f"{self.name}_{self.shape}_peg_g{len(geoms)}",
+                    file=f"./objects/pegs_and_holes/{self.shape}_peg/{p.split('/')[-1]}",
+                    scale=self.size,
+                ),
+            )
             geoms.append(geom)
             aux_assets.append(aux_asset)
         return geoms, aux_assets
@@ -526,7 +691,7 @@ class Peg(Brick):
     def _get_grasp_poses(self) -> Dict[str, tuple[np.ndarray, np.ndarray]]:
         pos = np.zeros(3)
         pos[-1] = (self.size[-1] - 0.5) * self._voxel_size
-        quat = np.array([1., 0., 0., 0.])
+        quat = np.array([1.0, 0.0, 0.0, 0.0])
         # TODO: consider symmetry
         return {f"{self.name}_grasp0": (pos, quat)}
 
@@ -566,20 +731,30 @@ class Board(object):
             self.hole_shapes[-new_id] = brick.shape
         self.update_voxels(brick, new_id, compliant=compliant)
 
-    def get_bodies(self, base_pos, base_quat, optimize=True) -> tuple[List[Element], List[Element]]:
+    def get_bodies(
+        self, base_pos, base_quat, optimize=True
+    ) -> tuple[List[Element], List[Element]]:
         """
         Get bodies and auxiliary assets for the bricks
         """
         bodies, aux_assets = [], []
         for brick in self.bricks:
-            body, aux = brick.get_body(pos=base_pos, quat=base_quat, freejoint=True, optimize=optimize)
+            body, aux = brick.get_body(
+                pos=base_pos, quat=base_quat, freejoint=True, optimize=optimize
+            )
             bodies.append(body)
             aux_assets.extend(aux)
         base_body = bodies[0]
         for i, brick in enumerate(self.bricks[1:]):
-            create_element(tag="site", parent=base_body, attributes={
-                "name": f"brick_{i + 2}_hole_align", "pos": self._get_relative_pos(brick), "class": "invisible_site"
-            })
+            create_element(
+                tag="site",
+                parent=base_body,
+                attributes={
+                    "name": f"brick_{i + 2}_hole_align",
+                    "pos": self._get_relative_pos(brick),
+                    "class": "invisible_site",
+                },
+            )
         return bodies, aux_assets
 
     def get_equalities(self) -> List[Element]:
@@ -589,13 +764,26 @@ class Board(object):
         """
         equalities = []
         for i, brick in enumerate(self.bricks[1:]):
-            eq1 = create_element(tag="weld", attributes={
-                "name": f"brick_{i + 2}_grasp_hand", "body1": "hand", "body2": f"brick_{i + 2}", "active": "false",
-                "solimp": [0.99, 0.999, 0.001], "solref": [0.01, 1]
-            })
-            eq2 = create_element(tag="weld", attributes={
-                "name": f"brick_{i + 2}_on_fixture", "body1": "fixture", "body2": f"brick_{i + 2}", "active": "false",
-            })
+            eq1 = create_element(
+                tag="weld",
+                attributes={
+                    "name": f"brick_{i + 2}_grasp_hand",
+                    "body1": "hand",
+                    "body2": f"brick_{i + 2}",
+                    "active": "false",
+                    "solimp": [0.99, 0.999, 0.001],
+                    "solref": [0.01, 1],
+                },
+            )
+            eq2 = create_element(
+                tag="weld",
+                attributes={
+                    "name": f"brick_{i + 2}_on_fixture",
+                    "body1": "fixture",
+                    "body2": f"brick_{i + 2}",
+                    "active": "false",
+                },
+            )
             equalities.extend([eq1, eq2])
 
         return equalities
@@ -606,25 +794,34 @@ class Board(object):
         """
         return brick.base_center + brick.offset * VOXEL_SIZE - self.base_center
 
-    def update_voxels(self, new_brick: Brick, new_id: int, compliant: bool = False) -> None:
+    def update_voxels(
+        self, new_brick: Brick, new_id: int, compliant: bool = False
+    ) -> None:
         """
         Update the voxel representation of the whole board
         :param new_brick: the new brick to be added
         :param new_id: the id of the new brick
         :param compliant: if the brick is compliant, it only intersects with the base board.
         """
-        idxs = slice3d(new_brick.offset, np.array(new_brick.offset) + np.array(new_brick.voxels.shape))
-        critical_brick_ids = self._voxels[idxs][(self._voxels[idxs] != 0) & (new_brick.voxels != 0)]
+        idxs = slice3d(
+            new_brick.offset,
+            np.array(new_brick.offset) + np.array(new_brick.voxels.shape),
+        )
+        critical_brick_ids = self._voxels[idxs][
+            (self._voxels[idxs] != 0) & (new_brick.voxels != 0)
+        ]
         critical_brick_ids = list(set(critical_brick_ids))
         for i in critical_brick_ids:
             if i != 1:  # exclude base board
-                self.dependencies.add((i, new_id))  # brick_{i} should be manipulated before brick_{new_id}
+                self.dependencies.add(
+                    (i, new_id)
+                )  # brick_{i} should be manipulated before brick_{new_id}
 
         if compliant:
             # a compliant brick should only intersect with the base brick
-            intersect_voxels = (
-                (self._voxels[idxs] > 1) & (new_brick.voxels != 0)
-            )   # an array of 0/1, with 1 representing intersection
+            intersect_voxels = (self._voxels[idxs] > 1) & (
+                new_brick.voxels != 0
+            )  # an array of 0/1, with 1 representing intersection
             # update voxels of the new brick
             new_brick.voxels[intersect_voxels != 0] = 0
             # update voxel representation of the whole board
@@ -633,8 +830,10 @@ class Board(object):
             # update voxels of the base brick
             base_brick = self.bricks[0]
 
-            _idxs = slice3d(base_brick.offset, np.array(base_brick.offset) + np.array(
-                base_brick.voxels.shape))
+            _idxs = slice3d(
+                base_brick.offset,
+                np.array(base_brick.offset) + np.array(base_brick.voxels.shape),
+            )
             _voxels = self._voxels[_idxs]
             base_brick.voxels[_voxels > 1] = 0
             _idxs_hole = (base_brick.voxels != 0) & (_voxels < 0)
@@ -645,8 +844,12 @@ class Board(object):
             self._voxels[idxs] += new_brick.voxels * new_id
             for id in critical_brick_ids:
                 # update voxels of each critical brick
-                brick = self.bricks[id - 1]  # brick ids are 1-indexed; the base brick has id 1
-                _idxs = slice3d(brick.offset, np.array(brick.offset) + np.array(brick.voxels.shape))
+                brick = self.bricks[
+                    id - 1
+                ]  # brick ids are 1-indexed; the base brick has id 1
+                _idxs = slice3d(
+                    brick.offset, np.array(brick.offset) + np.array(brick.voxels.shape)
+                )
                 _voxels = self._voxels[_idxs]
                 brick.voxels[(_voxels > 0) & (_voxels != id)] = 0
                 _idxs_hole = (brick.voxels != 0) & (_voxels < 0)
@@ -660,12 +863,17 @@ class Board(object):
         cnt = map(lambda v: np.unique(v).size, voxels)
         cnt = np.array(list(cnt)).reshape(self.size[:2])
         # cnt = minimum_filter(cnt, size=(2, 2))
-        grid = np.meshgrid(np.arange(self.size[0]), np.arange(self.size[1]), indexing='ij')
+        grid = np.meshgrid(
+            np.arange(self.size[0]), np.arange(self.size[1]), indexing="ij"
+        )
         grid = np.array(grid).transpose((1, 2, 0))
         candidates = grid[cnt > 2]
         for _ in range(max_trials):
             x, y = candidates[np.random.randint(len(candidates))]
-            if np.all(self._voxels[x - 1:x + thickness + 1, y - 1:y + thickness + 1] == self._voxels[x, y]):
+            if np.all(
+                self._voxels[x - 1 : x + thickness + 1, y - 1 : y + thickness + 1]
+                == self._voxels[x, y]
+            ):
                 empties = np.where(self._voxels[x, y] == 0)
                 assert empties[0].size > 0
                 z = empties[0][0]
@@ -679,14 +887,19 @@ class Board(object):
         voxels = self._voxels.reshape(-1, self.size[-1])
         cnt = map(lambda v: np.unique(v).size, voxels)
         cnt = np.array(list(cnt)).reshape(self.size[:2])
-        grid = np.meshgrid(np.arange(self.size[0]), np.arange(self.size[1]), indexing='ij')
+        grid = np.meshgrid(
+            np.arange(self.size[0]), np.arange(self.size[1]), indexing="ij"
+        )
         grid = np.array(grid).transpose((1, 2, 0))
         mask = np.zeros_like(cnt, dtype=bool)
-        mask[4:-4-thickness, 4:-4-thickness] = True
+        mask[4 : -4 - thickness, 4 : -4 - thickness] = True
         candidates = grid[(cnt == 2) & (mask)]
         for _ in range(max_trials):
             x, y = candidates[np.random.randint(len(candidates))]
-            if np.all(self._voxels[x - 1:x + thickness + 1, y - 1:y + thickness + 1] == self._voxels[x, y]):
+            if np.all(
+                self._voxels[x - 1 : x + thickness + 1, y - 1 : y + thickness + 1]
+                == self._voxels[x, y]
+            ):
                 empties = np.where(self._voxels[x, y] == 0)
                 assert empties[0].size > 0
                 z = empties[0][0]
@@ -708,19 +921,25 @@ class Board(object):
         return np.array([x, y, 0])
 
 
-def generate_rectangular_brick(name: str, size: ArrayLike,
-                               offset: Optional[ArrayLike] = None,
-                               rgba: Optional[tuple] = None,
-                               parent_board: Optional[Board] = None
-                               ) -> Brick:
+def generate_rectangular_brick(
+    name: str,
+    size: ArrayLike,
+    offset: Optional[ArrayLike] = None,
+    rgba: Optional[tuple] = None,
+    parent_board: Optional[Board] = None,
+) -> Brick:
     """
     Generate a rectangular brick
     """
     if offset is not None:
         for i, x in enumerate(offset):
             assert x % 1 == 0
-            assert isinstance(x, int), f"Offset should be integers, got {offset}: {type(x)} at index {i}"
-    brick = Brick(name=name, size=size, offset=offset, rgba=rgba, parent_board=parent_board)
+            assert isinstance(x, int), (
+                f"Offset should be integers, got {offset}: {type(x)} at index {i}"
+            )
+    brick = Brick(
+        name=name, size=size, offset=offset, rgba=rgba, parent_board=parent_board
+    )
     return brick
 
 
@@ -730,16 +949,13 @@ def generate_board(max_bodies: int = 20) -> Board:
     """
     color_names = list(COLORS)
     np.random.shuffle(color_names)
-    rgba_list = [tuple(COLORS[color_name]) + (1.,) for color_name in color_names]
-    size = (np.random.randint(25, 40),
-            np.random.randint(25, 40),
-            50)
+    rgba_list = [tuple(COLORS[color_name]) + (1.0,) for color_name in color_names]
+    size = (np.random.randint(25, 40), np.random.randint(25, 40), 50)
     board = Board(size=size)
     # generate base
     base_height = np.random.randint(4, 8)
     base = generate_rectangular_brick(
-        name="brick_1",
-        size=(size[0], size[1], base_height), rgba=rgba_list[0]
+        name="brick_1", size=(size[0], size[1], base_height), rgba=rgba_list[0]
     )
     base.description = f"{color_names[0]} board"
     board.add_brick(base)
@@ -778,9 +994,13 @@ def generate_board(max_bodies: int = 20) -> Board:
             offset = [int(offset_x), int(offset_y), offset_z]
 
             st, ed = offset[1 - dir], offset[1 - dir] + sz[1 - dir]
-            if np.all(~occupied[1 - dir][max(0, st - 1): min(ed + 1, len(occupied[1 - dir]))]):
+            if np.all(
+                ~occupied[1 - dir][max(0, st - 1) : min(ed + 1, len(occupied[1 - dir]))]
+            ):
                 success = True
-                occupied[1 - dir][max(0, st - 1): min(ed + 1, len(occupied[1 - dir]))] = True
+                occupied[1 - dir][
+                    max(0, st - 1) : min(ed + 1, len(occupied[1 - dir]))
+                ] = True
 
         lower_bound = max(lower_bound, offset_z + 1)
         upper_bound = max(upper_bound, offset_z + h)
@@ -796,7 +1016,9 @@ def generate_board(max_bodies: int = 20) -> Board:
         brick_offset, brick_size = sample_beam(dir=np.random.choice([0, 1]))
         if brick_offset is None:
             break
-        brick = generate_rectangular_brick(name=f"brick_{id}", size=brick_size, offset=brick_offset)
+        brick = generate_rectangular_brick(
+            name=f"brick_{id}", size=brick_size, offset=brick_offset
+        )
         brick.rgba = rgba_list[id - 1]
         brick.description = f"{color_names[id - 1]} block"
         if id > 3 and np.random.rand() < 0.5:
@@ -811,9 +1033,12 @@ def generate_board(max_bodies: int = 20) -> Board:
         nail_point = board.sample_nail_point(thickness)
         if nail_point is not None:
             x, y, z = nail_point
-            nail = Nail(name=f"brick_{id}",
-                        size=(thickness + 2, thickness + 2, z + np.random.randint(2, 5)),
-                        offset=(x-1, y-1, 1), shank_length=z-1)
+            nail = Nail(
+                name=f"brick_{id}",
+                size=(thickness + 2, thickness + 2, z + np.random.randint(2, 5)),
+                offset=(x - 1, y - 1, 1),
+                shank_length=z - 1,
+            )
             nail.rgba = rgba_list[id - 1]
             nail.description = f"{color_names[id - 1]} nail"
             board.add_brick(nail)
@@ -850,6 +1075,6 @@ def generate_xml(seed: int) -> tuple[XmlMaker, dict]:
     info = {
         "n_bodies": len(bodies),
         "brick_descriptions": {brick.name: brick.description for brick in board.bricks},
-        "dependencies": board.dependencies.copy()
+        "dependencies": board.dependencies.copy(),
     }
     return xml, info

@@ -1,11 +1,12 @@
 import abc
 import random
 import warnings
-from gym.utils import seeding
-import numpy as np
 from os import path
+
 import gym
 import mujoco
+import numpy as np
+from gym.utils import seeding
 
 from roboworld.envs.mujoco.utils import rotation as R
 
@@ -20,7 +21,14 @@ class MujocoEnv(gym.Env, abc.ABC):
 
     max_path_length = 5000
 
-    def __init__(self, model_path, frame_skip, render_mode='offscreen', render_width=640, render_height=480):
+    def __init__(
+        self,
+        model_path,
+        frame_skip,
+        render_mode="offscreen",
+        render_width=640,
+        render_height=480,
+    ):
         if not path.exists(model_path):
             raise IOError("File %s does not exist" % model_path)
 
@@ -30,17 +38,17 @@ class MujocoEnv(gym.Env, abc.ABC):
         self.data = mujoco.MjData(self.model)
         self.render_mode = render_mode
 
-        if self.render_mode == 'offscreen':
+        if self.render_mode == "offscreen":
             self.model.vis.global_.offwidth = render_width
             self.model.vis.global_.offheight = render_height
 
-        self.renderer = mujoco.Renderer(self.model, width=render_width, height=render_height)   # for offscreen rendering
+        self.renderer = mujoco.Renderer(
+            self.model, width=render_width, height=render_height
+        )  # for offscreen rendering
         self.viewer = None
         self._viewers = {}
 
-        self.metadata = {
-            'video.frames_per_second': int(np.round(1.0 / self.dt))
-        }
+        self.metadata = {"video.frames_per_second": int(np.round(1.0 / self.dt))}
         self.init_qpos = self.data.qpos.copy()
         self.init_qvel = self.data.qvel.copy()
 
@@ -113,8 +121,8 @@ class MujocoEnv(gym.Env, abc.ABC):
         return self.model.opt.timestep * self.frame_skip
 
     def do_simulation(self, ctrl, n_frames=None):
-        if getattr(self, 'curr_path_length', 0) > self.max_path_length:
-            raise RuntimeError(f'Maximum path length ({self.max_path_length}) exceeded')
+        if getattr(self, "curr_path_length", 0) > self.max_path_length:
+            raise RuntimeError(f"Maximum path length ({self.max_path_length}) exceeded")
         if self._did_see_sim_exception:
             return
 
@@ -134,8 +142,7 @@ class MujocoEnv(gym.Env, abc.ABC):
         return self.renderer.render()
 
     def render(self, offscreen=False, camera_name="table_back", resolution=(640, 480)):
-
-        if self.render_mode == 'offscreen':
+        if self.render_mode == "offscreen":
             offscreen = True
         if offscreen:
             if self._record:
@@ -145,7 +152,7 @@ class MujocoEnv(gym.Env, abc.ABC):
             else:
                 return None
         else:
-            self._get_viewer('window').sync()
+            self._get_viewer("window").sync()
             return None
 
     def record_on(self, record_frame_skip=5):
@@ -156,7 +163,7 @@ class MujocoEnv(gym.Env, abc.ABC):
 
     def record_off(self):
         self._record = False
-    
+
     def _record_img(self, img):
         if self._record_skipped_frames == 0:
             self.frames.append(img.copy())
@@ -174,12 +181,13 @@ class MujocoEnv(gym.Env, abc.ABC):
             self.viewer = None
 
     def _get_viewer(self, mode):
-        assert mode in {'window', 'offscreen'}
+        assert mode in {"window", "offscreen"}
         self.viewer = self._viewers.get(mode)
         if self.viewer is None:
-            if mode == 'window':
+            if mode == "window":
                 self.viewer = mujoco.viewer.launch_passive(
-                    self.model, self.data,
+                    self.model,
+                    self.data,
                     show_left_ui=False,
                     show_right_ui=False,
                 )
@@ -198,14 +206,14 @@ class MujocoEnv(gym.Env, abc.ABC):
         body_id = self.model.body(body_name).id
         assert self.model.body_dofnum[body_id] == 6
         qpos_start_idx = self.model.jnt_qposadr[self.model.body_jntadr[body_id]]
-        self.data.qpos[qpos_start_idx: qpos_start_idx + 3] = pos.copy()
+        self.data.qpos[qpos_start_idx : qpos_start_idx + 3] = pos.copy()
         mujoco.mj_forward(self.model, self.data)
 
     def set_body_quat(self, body_name, quat):
         body_id = self.model.body(body_name).id
         assert self.model.body_dofnum[body_id] == 6
         qpos_start_idx = self.model.jnt_qposadr[self.model.body_jntadr[body_id]]
-        self.data.qpos[qpos_start_idx + 3: qpos_start_idx + 7] = quat.copy()
+        self.data.qpos[qpos_start_idx + 3 : qpos_start_idx + 7] = quat.copy()
         mujoco.mj_forward(self.model, self.data)
 
     def _get_site_pos(self, site_name):
@@ -258,9 +266,12 @@ class MujocoEnv(gym.Env, abc.ABC):
         Check if there's collision between geoms in sets `geom_ids1` and `geom_ids2`
         """
         contacts = [
-            c for c in self.data.contact
-            if ((c.geom1 in geom_ids1 and c.geom2 in geom_ids2)
-                or (c.geom1 in geom_ids2 and c.geom2 in geom_ids1))
+            c
+            for c in self.data.contact
+            if (
+                (c.geom1 in geom_ids1 and c.geom2 in geom_ids2)
+                or (c.geom1 in geom_ids2 and c.geom2 in geom_ids1)
+            )
         ]
         if not require_nonzero_force:
             return len(contacts) > 0

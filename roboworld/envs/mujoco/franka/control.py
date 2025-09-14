@@ -6,7 +6,6 @@ import numpy as np
 
 
 class ControllerBase:
-
     def __init__(self, model, data, dof_ids, actuator_ids):
         assert mujoco.__version__ >= "3.1.0", "Please upgrade to mujoco 3.1.0 or later."
 
@@ -28,9 +27,10 @@ class ControllerBase:
 
 
 class DiffIKNullspaceController(ControllerBase):
-
     def __init__(self, model, data, dof_ids, actuator_ids):
-        super(DiffIKNullspaceController, self).__init__(model, data, dof_ids, actuator_ids)
+        super(DiffIKNullspaceController, self).__init__(
+            model, data, dof_ids, actuator_ids
+        )
 
         self.integration_dt: float = 0.1
         self.damping: float = 1e-4
@@ -60,14 +60,18 @@ class DiffIKNullspaceController(ControllerBase):
         self.twist[3:] *= self.Kori / self.integration_dt
 
         # Jacobian.
-        mujoco.mj_jacSite(self.model, self.data, self.jac[:3], self.jac[3:], self.site_id)
+        mujoco.mj_jacSite(
+            self.model, self.data, self.jac[:3], self.jac[3:], self.site_id
+        )
         jac = self.jac[:, self.dof_ids]
 
         # Damped least squares.
         dq = jac.T @ np.linalg.solve(jac @ jac.T + self.diag, self.twist)
 
         # Nullspace control biasing joint velocities towards the home configuration.
-        dq += (self.eye - np.linalg.pinv(jac) @ jac) @ (self.Kn * (self.q0 - self.data.qpos[self.dof_ids]))
+        dq += (self.eye - np.linalg.pinv(jac) @ jac) @ (
+            self.Kn * (self.q0 - self.data.qpos[self.dof_ids])
+        )
 
         # Clamp maximum joint velocity.
         dq_abs_max = np.abs(dq).max()

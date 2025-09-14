@@ -1,4 +1,6 @@
-from .rotation import *
+import numpy as np
+
+from .rotation import mat2quat, quat2axisangle, quat2mat
 
 
 def get_rel_rotmat(curr_quat, target_quat, global_frame=False):
@@ -15,7 +17,9 @@ def get_rel_rotmat(curr_quat, target_quat, global_frame=False):
 
 
 def get_rel_axisangle(curr_quat, target_quat, global_frame=False):
-    relative_rot_matrix = get_rel_rotmat(curr_quat, target_quat, global_frame=global_frame)
+    relative_rot_matrix = get_rel_rotmat(
+        curr_quat, target_quat, global_frame=global_frame
+    )
     relative_rot_quat = mat2quat(relative_rot_matrix)
     return quat2axisangle(relative_rot_quat)
 

@@ -1,6 +1,6 @@
 import os
 
-ENV_ASSET_DIR = os.path.join(os.path.dirname(__file__), 'assets')
+ENV_ASSET_DIR = os.path.join(os.path.dirname(__file__), "assets")
 
 
 def full_path_for(file_name):
