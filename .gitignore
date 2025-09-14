@@ -5,3 +5,4 @@ models
 *.egg-info
 .command_history
 MUJOCO_LOG.TXT
+assets

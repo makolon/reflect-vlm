@@ -1,8 +1,7 @@
-import numpy as np
-from roboworld.envs.mujoco.franka.franka_assembly import FrankaAssemblyEnv, AssemblyOracle
+from roboworld.envs.mujoco.franka.franka_assembly import AssemblyOracle
+
 
 class OracleAgent(object):
-
     def __init__(self, oracle: AssemblyOracle):
         self.oracle = oracle
         self.action_primitives = ["pick up", "put down", "insert", "reorient", "done"]
@@ -11,7 +10,7 @@ class OracleAgent(object):
         self.oracle.update_state_from_env()
         oracle_action = self.oracle.get_action()
         return self.convert_action(oracle_action)
-    
+
     def get_all_feasible_actions(self, image=None, goal_image=None, inp=None):
         self.oracle.update_state_from_env()
         all_feasible_actions = self.oracle.get_all_feasible_actions()

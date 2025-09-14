@@ -1,18 +1,15 @@
-import textwrap
-
 def parse_act_txt(act_txt):
     if "done" in act_txt:
         return "done", None
     if str.isdigit(act_txt.split(". ")[0]):
         act_txt = act_txt.split(". ")[1]
     act_txt_splitted = act_txt.split()
-    act = " ".join(act_txt_splitted[:max(1, len(act_txt_splitted) - 1)])
+    act = " ".join(act_txt_splitted[: max(1, len(act_txt_splitted) - 1)])
     obj = act_txt_splitted[-1]
     return act, obj
 
 
 def get_prompt(version, history, obj_labels, initial_plan=None):
-
     if version == "propose":
         history_txt = f"[{', '.join(history[-10:])}]"
         obj_labels_txt = f"[{', '.join(obj_labels)}]"
@@ -44,5 +41,24 @@ def get_prompt(version, history, obj_labels, initial_plan=None):
 if __name__ == "__main__":
     print(parse_act_txt("done"))
     print(parse_act_txt("pick up blue"))
-    print(get_prompt(history=['pick up red', 'reorient red', 'insert red'], obj_labels=['red', 'blue'], version='propose'))
-    print(get_prompt(history=['pick up red', 'reorient red', 'insert red'], obj_labels=['red', 'blue'], version='reflect', initial_plan=['pick up blue', 'reorient blue', 'insert blue', 'pick up green', 'insert green']))
+    print(
+        get_prompt(
+            history=["pick up red", "reorient red", "insert red"],
+            obj_labels=["red", "blue"],
+            version="propose",
+        )
+    )
+    print(
+        get_prompt(
+            history=["pick up red", "reorient red", "insert red"],
+            obj_labels=["red", "blue"],
+            version="reflect",
+            initial_plan=[
+                "pick up blue",
+                "reorient blue",
+                "insert blue",
+                "pick up green",
+                "insert green",
+            ],
+        )
+    )

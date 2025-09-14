@@ -1,9 +1,10 @@
+import base64
+import os
+from io import BytesIO
+
 import numpy as np
 from openai import OpenAI
-import os
 from PIL import Image
-from io import BytesIO
-import base64
 
 
 def pil_to_base64(image_pil, size=(336, 336)):
@@ -13,9 +14,9 @@ def pil_to_base64(image_pil, size=(336, 336)):
     img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
     return img_str
 
-class GPTAgent(object):
 
-    def __init__(self, api_key=None, model='gpt-4o'):
+class GPTAgent(object):
+    def __init__(self, api_key=None, model="gpt-4o"):
         api_key = os.environ.get("OPENAI_API_KEY", api_key)
         if api_key is None:
             raise ValueError("Please set OpenAI api_key!")
@@ -24,23 +25,31 @@ class GPTAgent(object):
         self.system_prompt = "You are an intelligent robot equipped with cameras and robotic arms, your primary task is to observe and interact with the objects on the desktop."
 
     def parse_prompt(self, prompt, image_list):
-        prompt_list = prompt.split('<image>')
+        prompt_list = prompt.split("<image>")
         user_prompts = []
         for i, prompt in enumerate(prompt_list):
             user_prompts.append({"type": "text", "text": prompt})
             if i < len(image_list) and image_list[i] is not None:
-                user_prompts.append({"type": "image_url", "image_url": {
-                    "url": f"data:image/png;base64,{image_list[i]}"}
-                })
-        
-        user_prompts.append({"type": "text", "text": "You can only output the action, e.g., pick up red. Do not output anything else."})
+                user_prompts.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/png;base64,{image_list[i]}"},
+                    }
+                )
+
+        user_prompts.append(
+            {
+                "type": "text",
+                "text": "You can only output the action, e.g., pick up red. Do not output anything else.",
+            }
+        )
 
         final_prompt = [
-        {"role": "system", "content": self.system_prompt},
-        {"role": "user", "content": user_prompts}
+            {"role": "system", "content": self.system_prompt},
+            {"role": "user", "content": user_prompts},
         ]
         return final_prompt
-    
+
     def act(self, image, goal_image, inp, next_image=None):
         if isinstance(image, np.ndarray):
             image = Image.fromarray(image)

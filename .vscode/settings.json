@@ -1,0 +1,47 @@
+{
+    // Python interpreter (change this to your own path)
+    "python.defaultInterpreterPath": "${HOME}/reflect-vlm/.venv/bin/python",
+
+    // Formatting
+    "[python]": {
+        "editor.tabSize": 4,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        },
+    },
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    "files.trimTrailingWhitespace": true,
+    "editor.rulers": [120],
+
+    // Linting
+    "ruff.lint.enable": true,
+
+    // Exclude
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/.ruff_cache": true,
+    },
+    "files.watcherExclude": {
+        "**/__pycache__": true,
+        "data": true,
+        "data_old": true,
+        "data_isaaclab": true,
+        "data_policy": true,
+        "roboverse_data": true,
+        "wandb": true,
+        "tmp": true,
+        "checkpoints": true,
+        "info": true,
+        "third_party": true,
+        "IsaacLab": true,
+        "docker": true,
+        "debug": true,
+        "data_ori": true,
+        "output": true,
+        "roboverse_demo": true,
+        "dashboard": true,
+    },
+}

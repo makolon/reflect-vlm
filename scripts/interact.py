@@ -1,28 +1,30 @@
-import readline
 import argparse
-from roboworld.envs.mujoco.franka.franka_assembly import (
-    FrankaAssemblyEnv, AssemblyOracle
-)
+import readline
+
 from roboworld.agent.oracle import OracleAgent
-from roboworld.envs.generator import generate_xml
-from roboworld.envs.asset_path_utils import full_path_for
 from roboworld.constants import ACTION_PRIMITIVES
+from roboworld.envs.asset_path_utils import full_path_for
+from roboworld.envs.generator import generate_xml
+from roboworld.envs.mujoco.franka.franka_assembly import (
+    AssemblyOracle,
+    FrankaAssemblyEnv,
+)
 
 
 class HistoryConsole:
-    def __init__(self, history_file='.command_history'):
+    def __init__(self, history_file=".command_history"):
         self.history_file = history_file
         try:
             readline.read_history_file(history_file)
             readline.set_history_length(100)
         except FileNotFoundError:
             pass
-    
+
     def save_history(self):
         try:
             readline.write_history_file(self.history_file)
-        except:
-            pass
+        except Exception as e:
+            print(f"Error saving history to {self.history_file}: {e}")
 
     def input(self, prompt=">>> "):
         try:
@@ -32,8 +34,7 @@ class HistoryConsole:
 
 
 def interact(env_seed, reset_seed=1):
-
-    render_mode = 'window'
+    render_mode = "window"
     console = HistoryConsole()
     xml_filename = full_path_for("tmp.xml")
     xml, info = generate_xml(env_seed)
@@ -41,16 +42,27 @@ def interact(env_seed, reset_seed=1):
 
     board_name = "brick_1"
     fixture_name = None  # "fixture"
-    peg_ids = [j+1 for j in range(1, info['n_bodies'])]
-    peg_names = [f"brick_{j+1}" for j in range(1, info['n_bodies'])]
-    peg_descriptions = [info['brick_descriptions'][peg_name] for peg_name in peg_names]
+    peg_ids = [j + 1 for j in range(1, info["n_bodies"])]
+    peg_names = [f"brick_{j + 1}" for j in range(1, info["n_bodies"])]
+    peg_descriptions = [info["brick_descriptions"][peg_name] for peg_name in peg_names]
     peg_labels = [" ".join(pd.split()[:1]) for pd in peg_descriptions]
 
-    env = FrankaAssemblyEnv(board_name=board_name, fixture_name=fixture_name, peg_names=peg_names,
-                            peg_descriptions=peg_descriptions, render_mode=render_mode, frame_skip=20,
-                            model_name=xml_filename, magic_attaching=True)
-    oracle = AssemblyOracle(env=env, brick_ids=peg_ids, brick_descriptions=peg_descriptions,
-                            dependencies=info["dependencies"])
+    env = FrankaAssemblyEnv(
+        board_name=board_name,
+        fixture_name=fixture_name,
+        peg_names=peg_names,
+        peg_descriptions=peg_descriptions,
+        render_mode=render_mode,
+        frame_skip=20,
+        model_name=xml_filename,
+        magic_attaching=True,
+    )
+    oracle = AssemblyOracle(
+        env=env,
+        brick_ids=peg_ids,
+        brick_descriptions=peg_descriptions,
+        dependencies=info["dependencies"],
+    )
     oracle_agent = OracleAgent(oracle)
 
     env.reset(seed=reset_seed)
@@ -66,11 +78,11 @@ def interact(env_seed, reset_seed=1):
             "=" * 80,
             f"[Step {step}]",
             f"Please enter the action in the format '<act> <obj>'.",
-            f"<act>: {', '.join([f'[{i+1}]{a}' for i, a in enumerate(ACTION_PRIMITIVES)])}.",
-            f"<obj>: {', '.join([f'[{i+1}]{l}' for i, l in enumerate(peg_labels)])}.",
+            f"<act>: {', '.join([f'[{i + 1}]{a}' for i, a in enumerate(ACTION_PRIMITIVES)])}.",
+            f"<obj>: {', '.join([f'[{i + 1}]{l}' for i, l in enumerate(peg_labels)])}.",
             f"Directly press 'Enter' to perform the oracle action ({oracle_action}).",
             "-" * 80,
-            sep="\n"
+            sep="\n",
         )
 
         act, obj = None, None
@@ -79,7 +91,7 @@ def interact(env_seed, reset_seed=1):
             inp_list = inp.split()
             if len(inp_list) == 0 or inp_list[0] == "expert":
                 inp_list = oracle_action.split()  # use expert output
-            act = " ".join(inp_list[:max(1, len(inp_list) - 1)])
+            act = " ".join(inp_list[: max(1, len(inp_list) - 1)])
             if str.isdigit(act):
                 if not 1 <= int(act) <= len(ACTION_PRIMITIVES):
                     print(f"Unknown action '{act}'")

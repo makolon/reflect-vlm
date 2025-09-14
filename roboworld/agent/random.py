@@ -1,7 +1,7 @@
 import numpy as np
 
-class RandomAgent(object):
 
+class RandomAgent(object):
     def __init__(self, seed=0):
         self.action_primitives = ["pick up", "put down", "insert", "reorient", "done"]
         np.random.seed(seed)

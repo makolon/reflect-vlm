@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  reflectvlm:
+    build: .
+    image: reflectvlm:latest
+    container_name: reflectvlm
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    tty: true
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=${XAUTHORITY}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
