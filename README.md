@@ -107,12 +107,12 @@ class MyAgent:
     def __init__(self, ...):
         ... # initialize model etc.
 
-    def act(self, img, goal_img, inp):
+    def act(self, img, inp=None, next_image=None):
         """
         Args:
             img: the current image
-            goal_img: the goal image
-            inp: the input prompt
+            inp: the input prompt (optional)
+            next_image: the next predicted image (optional, used in reflection)
         Returns:
             action: a string of action
         """

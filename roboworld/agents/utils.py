@@ -14,11 +14,13 @@ def get_prompt(version, history, obj_labels, initial_plan=None):
         history_txt = f"[{', '.join(history[-10:])}]"
         obj_labels_txt = f"[{', '.join(obj_labels)}]"
         prompt = (
-            f"There is a puzzle consisting of a board and several pieces with different colors on the table. The goal is to assemble the puzzle with the robot arm. "
+            f"There is a puzzle consisting of a board and several pieces with different colors on the table. "
+            f"Your task is to assemble the puzzle by intelligently deciding the next action based on the current state. "
             f"In each step, one of the following four actions can be taken: pick up [obj], put down [obj], reorient [obj], and insert [obj], "
-            f"where [obj] refers to the piece to be manipulataed. "
-            f"The image of the goal state is: <image>. The image of the current state is: <image>. The most recently executed actions are: {history_txt}. "
-            f"What action should be taken next? Note that [obj] should be a color chosen from the following list: {obj_labels_txt}."
+            f"where [obj] refers to the piece to be manipulated. "
+            f"The image of the current state is: <image>. The most recently executed actions are: {history_txt}. "
+            f"Based on the current scene and action history, what action should be taken next? "
+            f"Note that [obj] should be a color chosen from the following list: {obj_labels_txt}."
         )
     elif version == "reflect":
         assert initial_plan is not None
@@ -26,12 +28,16 @@ def get_prompt(version, history, obj_labels, initial_plan=None):
         obj_labels_txt = f"[{', '.join(obj_labels)}]"
         init_plan_txt = f"[{', '.join(initial_plan)}]"
         prompt = (
-            f"There is a puzzle consisting of a board and several pieces with different colors on the table. The goal is to assemble the puzzle with the robot arm. "
+            f"There is a puzzle consisting of a board and several pieces with different colors on the table. "
+            f"Your task is to assemble the puzzle by intelligently deciding the next action based on the current state. "
             f"In each step, one of the following four actions can be taken: pick up [obj], put down [obj], reorient [obj], and insert [obj], "
-            f"where [obj] refers to the piece to be manipulataed. "
-            f"The image of the goal state is: <image>. The image of the current state is: <image>. The most recently executed actions are: {history_txt}. "
-            f"The next five steps planned by the model is {init_plan_txt}, from which we are going to only execute the first action. Note that if the full plan was executed sequentially, the future state would be: <image>. "
-            f"What action should be taken for the immediate next step? Note that [obj] should be a color chosen from the following list: {obj_labels_txt}. You can modify the initial plan if it leads to an undesired future state."
+            f"where [obj] refers to the piece to be manipulated. "
+            f"The image of the current state is: <image>. The most recently executed actions are: {history_txt}. "
+            f"The next five steps planned by the model is {init_plan_txt}, from which we are going to only execute the first action. "
+            f"Note that if the full plan was executed sequentially, the future state would be: <image>. "
+            f"Based on the current scene, action history, and predicted future state, what action should be taken for the immediate next step? "
+            f"Note that [obj] should be a color chosen from the following list: {obj_labels_txt}. "
+            f"You can modify the initial plan if it leads to an undesired future state."
         )
     else:
         raise ValueError(f"Unknown version `{version}`")

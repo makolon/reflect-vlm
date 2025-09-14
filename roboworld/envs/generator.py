@@ -60,9 +60,9 @@ def slice3d(start: ArrayLike, end: ArrayLike) -> tuple[slice, ...]:
     Create a 3D slice from start and end indices
     """
     s = []
-    for l, r in zip(start, end):
-        assert l % 1 == 0 and r % 1 == 0
-        s.append(slice(int(l), int(r)))
+    for left, right in zip(start, end):
+        assert left % 1 == 0 and right % 1 == 0
+        s.append(slice(int(left), int(right)))
     return tuple(s)
 
 

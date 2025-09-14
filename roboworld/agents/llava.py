@@ -68,8 +68,8 @@ class LlavaAgent(object):
     def act(
         self,
         image,
-        goal_image,
-        inp,
+        goal_image=None,
+        inp=None,
         next_image=None,
         num_propose_actions=1,
         return_score=False,
@@ -78,14 +78,16 @@ class LlavaAgent(object):
         self.init_conv()
         if isinstance(image, np.ndarray):
             image = Image.fromarray(image)
-            if goal_image is not None:
-                goal_image = Image.fromarray(goal_image)
             if next_image is not None:
                 next_image = Image.fromarray(next_image)
+
+        # Use only current image and optionally next_image (no goal_image)
+        image_list = [image]
+        if next_image is not None:
+            image_list.append(next_image)
+
         image_tensor = process_images(
-            [goal_image, image]
-            if next_image is None
-            else [goal_image, image, next_image],
+            image_list,
             self.image_processor,
             self.model.config,
         )

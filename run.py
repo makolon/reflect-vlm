@@ -9,8 +9,11 @@ import pandas as pd
 from absl import app, flags
 from PIL import Image
 
+from roboworld.agents.gemini import GeminiAgent
+from roboworld.agents.gpt import GPTAgent
 from roboworld.agents.llava import LlavaAgent
 from roboworld.agents.oracle import OracleAgent
+from roboworld.agents.random import RandomAgent
 from roboworld.agents.utils import get_prompt, parse_act_txt
 from roboworld.envs.asset_path_utils import full_path_for
 from roboworld.envs.generator import generate_xml
@@ -61,9 +64,7 @@ FLAGS_DEF = define_flags(
 )
 
 
-def imagine_with_sim(
-    env, agent, first_action, goal_img, history, obj_labels, traj_dir, t
-):
+def imagine_with_sim(env, agent, first_action, history, obj_labels, traj_dir, t):
     env_recording = env.is_recording
     if env_recording:
         env._record = False
@@ -87,7 +88,6 @@ def imagine_with_sim(
         _img = env.read_pixels(camera_name=FLAGS.camera_name)
         _a = agent.act(
             _img,
-            goal_img,
             inp=get_prompt(
                 version="propose", history=history + _plan, obj_labels=obj_labels
             ),
@@ -105,7 +105,7 @@ def imagine_with_sim(
 
 
 def imagine_with_diffusion(
-    diffusion_sim, agent, first_action, img, goal_img, history, obj_labels, traj_dir, t
+    diffusion_sim, agent, first_action, img, history, obj_labels, traj_dir, t
 ):
     _plan = [first_action]
     _img = img
@@ -127,7 +127,6 @@ def imagine_with_diffusion(
 
         _a = agent.act(
             _img,
-            goal_img,
             inp=get_prompt(
                 version="propose", history=history + _plan, obj_labels=obj_labels
             ),
@@ -215,6 +214,12 @@ def main(_):
     agent = None
     if FLAGS.agent_type == "llava":
         agent = LlavaAgent(model_path=FLAGS.model_path, model_base=FLAGS.model_base)
+    elif FLAGS.agent_type == "gpt":
+        agent = GPTAgent(api_key=FLAGS.gpt_api_key, model=FLAGS.gpt_model)
+    elif FLAGS.agent_type == "gemini":
+        agent = GeminiAgent(api_key=FLAGS.gemini_api_key, model=FLAGS.gemini_model)
+    else:
+        agent = RandomAgent()
 
     board_cnt, traj_cnt, succ_cnt = 0, 0, 0
     data = []
@@ -253,7 +258,7 @@ def main(_):
             agent_plan_list = [None] * FLAGS.max_steps
             agent_act_revised_list = [None] * FLAGS.max_steps
             traj_key_frames = []
-            question_list, answer_list = [], []
+            question_list = []
             history = []
             history_list = []
             total_time, inference_time, rollout_time = 0.0, 0.0, 0.0
@@ -296,7 +301,9 @@ def main(_):
                         agent_action = f"{np.random.choice(candidate_act_list)} {np.random.choice(env_info['peg_labels'])}"
                     else:
                         inference_t0 = time.time()
-                        agent_action = agent.act(img, goal_img, inp)
+                        agent_action = agent.act(
+                            img, inp=inp
+                        )  # Removed goal_img parameter
 
                         # reflect and revise action
                         if FLAGS.revise_action:
@@ -307,7 +314,6 @@ def main(_):
                                     env=env,
                                     agent=agent,
                                     first_action=agent_action,
-                                    goal_img=goal_img,
                                     history=history,
                                     obj_labels=env_info["peg_labels_shuffled"],
                                     traj_dir=traj_dir,
@@ -319,7 +325,6 @@ def main(_):
                                     agent=agent,
                                     first_action=agent_action,
                                     img=img,
-                                    goal_img=goal_img,
                                     history=history,
                                     obj_labels=env_info["peg_labels_shuffled"],
                                     traj_dir=traj_dir,
@@ -338,7 +343,7 @@ def main(_):
                                 )
                                 print("Q2:", inp2)
                                 agent_action_revised = agent.act(
-                                    img, goal_img, inp2, next_image=future_img
+                                    img, inp=inp2, next_image=future_img
                                 )
 
                             print("*" * 20, f"Step {t} reflection summary", "*" * 20)

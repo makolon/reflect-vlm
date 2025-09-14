@@ -146,7 +146,7 @@ def main():
         dtype = torch.float16 if args.device == "cuda" else torch.float32
 
     # Load diffusion model
-    print(f"\nLoading diffusion model...")
+    print("\nLoading diffusion model...")
     try:
         pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(
             args.model, torch_dtype=dtype
@@ -158,7 +158,7 @@ def main():
 
     # Generate prediction
     try:
-        generated_image = generate_pick_prediction(
+        _generated_image = generate_pick_prediction(
             action=args.action,
             input_image_path=args.input,
             pipe=pipe,
@@ -169,7 +169,7 @@ def main():
             seed=args.seed,
         )
 
-        print(f"\n✅ Success! Generated prediction for '{args.action}'")
+        print(f"\nSuccess! Generated prediction for '{args.action}'")
         print(f"Output saved to: {args.output}")
 
     except Exception as e:

@@ -31,17 +31,16 @@ class GeminiAgent(object):
 
         return user_prompts
 
-    def act(self, image, goal_image, inp, next_image=None):
+    def act(self, image, goal_image=None, inp=None, next_image=None):
         if isinstance(image, np.ndarray):
             image = Image.fromarray(image)
             image = image_resize(image)
-            if goal_image is not None:
-                goal_image = Image.fromarray(goal_image)
-                goal_image = image_resize(goal_image)
             if next_image is not None:
                 next_image = Image.fromarray(next_image)
                 next_image = image_resize(next_image)
-        image_list = [goal_image, image, next_image]
+
+        # Use only current image and optionally next_image (no goal_image)
+        image_list = [None, image, next_image]
         final_prompt = self.parse_prompt(inp, image_list)
         response = self.client.models.generate_content(
             model=self.model, contents=final_prompt

@@ -121,8 +121,10 @@ def violates_moderation(text):
         ret = requests.post(url, headers=headers, data=data, timeout=5)
         flagged = ret.json()["results"][0]["flagged"]
     except requests.exceptions.RequestException as e:
+        logging.error(f"RequestException while checking moderation: {e}")
         flagged = False
     except KeyError as e:
+        logging.error(f"Error occurred while checking moderation: {e}")
         flagged = False
 
     return flagged

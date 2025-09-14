@@ -77,9 +77,9 @@ def interact(env_seed, reset_seed=1):
         print(
             "=" * 80,
             f"[Step {step}]",
-            f"Please enter the action in the format '<act> <obj>'.",
-            f"<act>: {', '.join([f'[{i + 1}]{a}' for i, a in enumerate(ACTION_PRIMITIVES)])}.",
-            f"<obj>: {', '.join([f'[{i + 1}]{l}' for i, l in enumerate(peg_labels)])}.",
+            "Please enter the action in the format '<act> <obj>'.",
+            f"<act>: {', '.join([f'[{i + 1}]{action}' for i, action in enumerate(ACTION_PRIMITIVES)])}.",
+            f"<obj>: {', '.join([f'[{i + 1}]{label}' for i, label in enumerate(peg_labels)])}.",
             f"Directly press 'Enter' to perform the oracle action ({oracle_action}).",
             "-" * 80,
             sep="\n",
